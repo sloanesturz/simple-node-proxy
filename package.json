@@ -1,0 +1,27 @@
+{
+  "name": "Proxxyy",
+  "description": "An IFTTT Proxxy",
+  "version": "0.0.1",
+  "private": true,
+  "dependencies": {
+    "coffee-script": "1.6.3",
+    "http-proxy": "*",
+    "js-yaml": "2.1.0",
+    "newrelic": "0.10.3",
+    "raven": "0.5.1",
+    "statsd-client": "0.0.15",
+    "underscore": "1.5.1",
+    "underscore.string": "2.3.3",
+    "winston": "0.7.2"
+  },
+  "devDependencies": {
+    "forever": "0.10.8",
+    "mocha": "1.12.1",
+    "should": "1.2.2",
+    "supervisor": "0.5.5"
+  },
+  "engine": {
+    "node": "0.10.1",
+    "npm": "1.2.15"
+  }
+}
