@@ -3,6 +3,7 @@ net = require 'net'
 url = require 'url'
 http = require 'http'
 
+timed_out_until = 0
 
 truncate = (str) ->
   maxLen = 64
@@ -22,26 +23,37 @@ logError = (err) ->
 process.on 'uncaughtException', logError
 regularProxy = new httpProxy.RoutingProxy()
 
+sendError = (req, res) ->
+  res.statusCode = 500
+  res.setHeader('proxy-alive', 'false')
+  res.setHeader('Content-Type', 'text/plain')
+  res.write("Error\n")
+  res.end()
+
 server = http.createServer (req, res) ->
+  logRequest(req)
   uri = url.parse(req.url)
+  if timed_out_until > Date.now()
+    sendError(req, res)
+    return
+
   if uri.path.match 'is_alive'
-    logRequest(req)
-    res.statusCode = 200
     res.setHeader('proxy-alive', 'true')
     res.setHeader('Content-Type', 'text/plain')
     res.write("OK\n")
     res.end()
     return
 
-  logRequest req
   # overload the res.write() to sniff on response
   res.oldWrite = res.write
   res.write = (data) ->
     if data.toString().match /This IP has been automatically blocked/ || Math.random() > 0.5
       logError 'ERROR! data: \t' + data.toString()
-    res.oldWrite(data) # basically like calling super
-
-    
+      timed_out_until = Date.now() + 1000 * 60 * 5 # timeout for 5 minutes
+      sendError(req, res)
+      return
+    else
+      res.oldWrite(data) # basically like calling super
 
   regularProxy.proxyRequest req, res, 
     host: uri.hostname
