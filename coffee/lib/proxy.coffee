@@ -1,16 +1,48 @@
 httpProxy = require 'http-proxy'
-options = require './config'
+net = require 'net'
 url = require 'url'
-http = require('http')
+http = require 'http'
 
+truncate = (str) ->
+  maxLen = 64
+  if str.length > maxLen
+    return str.substr(0, maxLen) + '...'
+  else
+    return str
 
+logRequest = (req) ->
+  console.log "#{req.method} #{truncate(req.url)}"
+  for header in req.headers
+    console.log "* #{header}: #{truncate(req.headers[header])}"
 
-proxy = httpProxy.createServer (req, res, proxy) ->
-  target = 
-   host: 'craigslist.org'
-   port: 80
+logError = (err) ->
+  console.warn "*** #{err}"
 
-  # target = {host: 'www.craigslist.com', path: '/about/sites', port: 80};
-  proxy.proxyRequest(req, res, target);
+process.on 'uncaughtException', logError
+regularProxy = new httpProxy.RoutingProxy()
 
-proxy.listen(8000)
+server = http.createServer (req, res) ->
+  logRequest req
+  uri = url.parse(req.url)
+  regularProxy.proxyRequest req, res, 
+    host: uri.hostname
+    port: uri.port || 80
+
+server.on 'upgrade', (req, socket, head) ->
+  logRequest req
+  parts = req.url.split ':', 2
+  conn = net.connect parts[1], parts[2], ->
+    socket.write "HTTP/1.1 200 OK\r\n\r\n"
+    socket.pipe conn
+    conn.pipe socket
+
+server.listen 3000
+
+console.log "Starting proxy on port 3000"
+
+# proxy = httpProxy.createServer 9000, 'localhost', 
+#   forward: 
+#     port: 80,
+#     host: 'craigslist.org'
+
+# proxy.listen(8000)
