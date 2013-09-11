@@ -7,7 +7,7 @@ clean:
 	@rm -fr js/
 
 js: clean
-	coffee -c -o ./js ./coffee
+	./node_modules/.bin/coffee -c -o ./js ./coffee
 
 run: js
 	node ./js/lib/proxy.js
