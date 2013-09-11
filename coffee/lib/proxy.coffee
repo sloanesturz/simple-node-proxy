@@ -23,8 +23,17 @@ process.on 'uncaughtException', logError
 regularProxy = new httpProxy.RoutingProxy()
 
 server = http.createServer (req, res) ->
-  logRequest req
   uri = url.parse(req.url)
+  if uri.path.match 'is_alive'
+    logRequest(req)
+    res.statusCode = 200
+    res.setHeader('proxy-alive', 'true')
+    res.setHeader('Content-Type', 'text/plain')
+    res.write("OK\n")
+    res.end()
+    return
+
+  logRequest req
   # overload the res.write() to sniff on response
   res.oldWrite = res.write
   res.write = (data) ->

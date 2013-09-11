@@ -42,16 +42,21 @@
 
   server = http.createServer(function(req, res) {
     var uri;
-    res.statusCode = 500;
-    res.end();
-    return;
-    logRequest(req);
     uri = url.parse(req.url);
+    if (uri.path.match('is_alive')) {
+      logRequest(req);
+      res.statusCode = 200;
+      res.setHeader('proxy-alive', 'true');
+      res.setHeader('Content-Type', 'text/plain');
+      res.write("OK\n");
+      res.end();
+      return;
+    }
+    logRequest(req);
     res.oldWrite = res.write;
     res.write = function(data) {
       if (data.toString().match(/This IP has been automatically blocked/ || Math.random() > 0.5)) {
-        logError('ERROR!');
-        GLOBAL.stopWork = true;
+        logError('ERROR! data: \t' + data.toString());
       }
       return res.oldWrite(data);
     };
