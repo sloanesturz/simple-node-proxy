@@ -35,7 +35,7 @@ echo 'export NODE_ENV=production' >> /home/deploy/.bashrc
 
 ## ssh directory
 mkdir /home/deploy/.ssh
-chmod 0700 /home/deploy/.ssh
+chmod -R 0700 /home/deploy/.ssh
 
 ## github known_hosts
 ssh-keyscan -H github.com >> /home/deploy/.ssh/known_hosts
@@ -52,7 +52,10 @@ cd simple-node-proxy
 source ~/.bashrc
 npm install
 
+chown -R deploy:deploy /home/deploy/simple-node-proxy
+
 # upstart script
+# run node as `deploy` user.
 cat <<'EOF' > /etc/init/node.conf 
 description "node server"
 
@@ -66,7 +69,7 @@ umask 022
 script
   HOME=/home/deploy
   . $HOME/.profile
-  exec /usr/bin/node $HOME/app/current/js/lib/proxy.js >> $HOME/app/shared/logs/node.log 2>&1
+  exec sudo -u deploy /usr/bin/node $HOME/simple-node-proxy/js/lib/proxy.js >> $HOME/node.log 2>&1
 end script
 
 post-start script
@@ -89,3 +92,5 @@ deploy     ALL=NOPASSWD: /sbin/start node
 EOF
 chmod 0440 /etc/sudoers.d/node
 
+# start the server.
+start node
