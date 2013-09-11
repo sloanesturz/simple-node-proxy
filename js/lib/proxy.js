@@ -22,7 +22,7 @@
 
   logRequest = function(req) {
     var header, _i, _len, _ref, _results;
-    console.log("" + req.method + " " + (truncate(req.url)));
+    console.log("" + (Date()) + "\t " + req.method + " " + (truncate(req.url)));
     _ref = req.headers;
     _results = [];
     for (_i = 0, _len = _ref.length; _i < _len; _i++) {
@@ -33,7 +33,7 @@
   };
 
   logError = function(err) {
-    return console.warn("*** " + err);
+    return console.warn("*** " + (Date()) + "\t " + err);
   };
 
   process.on('uncaughtException', logError);
@@ -42,8 +42,19 @@
 
   server = http.createServer(function(req, res) {
     var uri;
+    res.statusCode = 500;
+    res.end();
+    return;
     logRequest(req);
     uri = url.parse(req.url);
+    res.oldWrite = res.write;
+    res.write = function(data) {
+      if (data.toString().match(/This IP has been automatically blocked/ || Math.random() > 0.5)) {
+        logError('ERROR!');
+        GLOBAL.stopWork = true;
+      }
+      return res.oldWrite(data);
+    };
     return regularProxy.proxyRequest(req, res, {
       host: uri.hostname,
       port: uri.port || 80

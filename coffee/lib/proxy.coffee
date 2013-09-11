@@ -3,6 +3,7 @@ net = require 'net'
 url = require 'url'
 http = require 'http'
 
+
 truncate = (str) ->
   maxLen = 64
   if str.length > maxLen
@@ -11,12 +12,12 @@ truncate = (str) ->
     return str
 
 logRequest = (req) ->
-  console.log "#{req.method} #{truncate(req.url)}"
+  console.log "#{Date()}\t #{req.method} #{truncate(req.url)}"
   for header in req.headers
     console.log "* #{header}: #{truncate(req.headers[header])}"
 
 logError = (err) ->
-  console.warn "*** #{err}"
+  console.warn "*** #{Date()}\t #{err}"
 
 process.on 'uncaughtException', logError
 regularProxy = new httpProxy.RoutingProxy()
@@ -24,6 +25,15 @@ regularProxy = new httpProxy.RoutingProxy()
 server = http.createServer (req, res) ->
   logRequest req
   uri = url.parse(req.url)
+  # overload the res.write() to sniff on response
+  res.oldWrite = res.write
+  res.write = (data) ->
+    if data.toString().match /This IP has been automatically blocked/ || Math.random() > 0.5
+      logError 'ERROR! data: \t' + data.toString()
+    res.oldWrite(data) # basically like calling super
+
+    
+
   regularProxy.proxyRequest req, res, 
     host: uri.hostname
     port: uri.port || 80
@@ -39,10 +49,3 @@ server.on 'upgrade', (req, socket, head) ->
 server.listen 3000
 
 console.log "Starting proxy on port 3000"
-
-# proxy = httpProxy.createServer 9000, 'localhost', 
-#   forward: 
-#     port: 80,
-#     host: 'craigslist.org'
-
-# proxy.listen(8000)
