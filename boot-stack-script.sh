@@ -1,7 +1,10 @@
-
 #!/bin/bash
 ## forked from https://www.linode.com/stackscripts/view/?StackScriptID=3127
 # <UDF name="ssh_key" Label="Paste in your public SSH key" default="" example="" optional="false" />
+# <UDF name="private_ip" Label="Paste in your private ip" default="" example="" optional="false" />
+# <UDF name="public_ip" Label="Paste in your public ip" default="" example="" optional="false" />
+# <UDF name="default_gateway" Label="Paste in your default gateway" default="" example="" optional="false" />
+
 
 # root ssh keys
 mkdir /root/.ssh
@@ -91,6 +94,35 @@ deploy     ALL=NOPASSWD: /sbin/stop node
 deploy     ALL=NOPASSWD: /sbin/start node
 EOF
 chmod 0440 /etc/sudoers.d/node
+
+rm /etc/network/interfaces
+
+cat <<EOF > /etc/network/interfaces
+# The loopback interface
+auto lo
+iface lo inet loopback
+
+# Configuration for eth0 and aliases
+
+# This line ensures that the interface will be brought up during boot.
+auto eth0 eth0:1
+
+# eth0 - This is the main IP address that will be used for most outbound connections.
+# The address, netmask and gateway are all necessary.
+iface eth0 inet static
+ address $PUBLIC_IP
+ netmask 255.255.255.0
+ gateway $DEFAULT_GATEWAY
+
+# eth0:1 - Private IPs have no gateway (they are not publicly routable) so all you need to
+# specify is the address and netmask.
+iface eth0:1 inet static
+ address $PRIVATE_IP
+ netmask 255.255.128.0
+EOF
+
+/etc/init.d/networking restart
+ping -c 5 $DEFAULT_GATEWAY   
 
 # start the server.
 start node
