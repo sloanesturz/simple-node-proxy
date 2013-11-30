@@ -3,6 +3,9 @@ net = require 'net'
 url = require 'url'
 http = require 'http'
 
+USERNAME = process.env.PROXY_USERNAME || ''
+PASSWORD = process.env.PROXY_PASSWORD || 'password'
+
 timed_out_until = 0
 
 truncate = (str) ->
@@ -14,8 +17,6 @@ truncate = (str) ->
 
 logRequest = (req) ->
   console.log "#{Date()}\t #{req.method} #{truncate(req.url)}"
-  for header in req.headers
-    console.log "* #{header}: #{truncate(req.headers[header])}"
 
 logError = (err) ->
   console.warn "*** #{Date()}\t #{err}"
@@ -23,25 +24,48 @@ logError = (err) ->
 process.on 'uncaughtException', logError
 regularProxy = new httpProxy.RoutingProxy()
 
-sendError = (req, res) ->
+send500 = (req, res) ->
   res.statusCode = 500
   res.setHeader('proxy-alive', 'false')
   res.setHeader('Content-Type', 'text/plain')
   res.write("Error\n")
   res.end()
 
+send401 = (req, res) ->
+  res.statusCode = 401
+  res.setHeader('Content-Type', 'text/plain')
+  res.write("Unauthorized\n")
+  res.end()
+
+getAuth = (authHeader) ->
+  try
+    token = authHeader.split(/\s+/).pop()
+    auth = new Buffer(token, 'base64').toString()
+    parts = auth.split(/:/)
+    username: parts[0], password: parts[1]
+  catch error # bad auth, return null
+    username: null, password: null
+
 server = http.createServer (req, res) ->
   logRequest(req)
   uri = url.parse(req.url)
   if timed_out_until > Date.now()
-    sendError(req, res)
+    send500(req, res)
     return
 
   if uri.path.match 'is_alive'
+    console.log "* Last timeout was #{timed_out_until}"
     res.setHeader('proxy-alive', 'true')
     res.setHeader('Content-Type', 'text/plain')
     res.write("OK\n")
     res.end()
+    return
+
+  # authenticate
+  auth = getAuth(req.headers['authorization'] || '')
+  if !(auth.username == USERNAME && auth.password == PASSWORD)
+    console.log("Unauthorized request to #{uri.hostname}")
+    send401(req, res)
     return
 
   # overload the res.write() to sniff on response
@@ -50,7 +74,7 @@ server = http.createServer (req, res) ->
     if data.toString().match /This IP has been automatically blocked/ || Math.random() > 0.5
       logError 'ERROR! data: \t' + data.toString()
       timed_out_until = Date.now() + 1000 * 60 * 5 # timeout for 5 minutes
-      sendError(req, res)
+      send500(req, res)
       return
     else
       res.oldWrite(data) # basically like calling super
