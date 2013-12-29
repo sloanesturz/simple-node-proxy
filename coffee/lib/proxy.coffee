@@ -65,8 +65,6 @@ server = http.createServer (req, res) ->
 
   # authenticate
   auth = getAuth(req.headers['proxy-authorization'] || '')
-  puts inspect req.headers
-  console.log "#{auth.username} =? #{USERNAME} $$$ #{auth.password} =? #{PASSWORD}"
   if !(auth.username == USERNAME && auth.password == PASSWORD)
     console.log("Unauthorized request to #{uri.hostname}")
     send401(req, res)
