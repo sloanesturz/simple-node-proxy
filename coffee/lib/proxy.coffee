@@ -2,9 +2,11 @@ httpProxy = require 'http-proxy'
 net = require 'net'
 url = require 'url'
 http = require 'http'
+{puts, inspect} = require 'util'
 
 USERNAME = process.env.PROXY_USERNAME || ''
 PASSWORD = process.env.PROXY_PASSWORD || 'password'
+PORT = if process.env.PORT? then parseInt(process.env.PORT) else 3000
 
 timed_out_until = 0
 
@@ -62,7 +64,9 @@ server = http.createServer (req, res) ->
     return
 
   # authenticate
-  auth = getAuth(req.headers['authorization'] || '')
+  auth = getAuth(req.headers['proxy-authorization'] || '')
+  puts inspect req.headers
+  console.log "#{auth.username} =? #{USERNAME} $$$ #{auth.password} =? #{PASSWORD}"
   if !(auth.username == USERNAME && auth.password == PASSWORD)
     console.log("Unauthorized request to #{uri.hostname}")
     send401(req, res)
@@ -71,7 +75,7 @@ server = http.createServer (req, res) ->
   # overload the res.write() to sniff on response
   res.oldWrite = res.write
   res.write = (data) ->
-    if data.toString().match /This IP has been automatically blocked/ || Math.random() > 0.5
+    if data.toString().match /This IP has been automatically blocked/
       logError 'ERROR! data: \t' + data.toString()
       timed_out_until = Date.now() + 1000 * 60 * 5 # timeout for 5 minutes
       send500(req, res)
@@ -91,6 +95,6 @@ server.on 'upgrade', (req, socket, head) ->
     socket.pipe conn
     conn.pipe socket
 
-server.listen 3000
+server.listen PORT
 
-console.log "Starting proxy on port 3000"
+console.log "Starting proxy on port #{PORT}"
