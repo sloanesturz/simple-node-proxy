@@ -77,14 +77,14 @@
   };
 
   server = http.createServer(function(req, res) {
-    var auth, uri;
+    var auth, uri, _ref1;
     logRequest(req);
     uri = url.parse(req.url);
     if (timed_out_until > Date.now()) {
       send500(req, res);
       return;
     }
-    if (uri.path.match('is_alive')) {
+    if (uri != null ? (_ref1 = uri.path) != null ? _ref1.match('is_alive') : void 0 : void 0) {
       console.log("* Last timeout was " + timed_out_until);
       res.setHeader('proxy-alive', 'true');
       res.setHeader('Content-Type', 'text/plain');
@@ -100,12 +100,16 @@
     }
     res.oldWrite = res.write;
     res.write = function(data) {
-      if (data.toString().match(/This IP has been automatically blocked/)) {
-        logError('ERROR! data: \t' + data.toString());
-        timed_out_until = Date.now() + 1000 * 60 * 5;
+      try {
+        if (data != null ? data.toString().match(/This IP has been automatically blocked/) : void 0) {
+          logError('ERROR! data: \t' + data.toString());
+          timed_out_until = Date.now() + 1000 * 60 * 5;
+          send500(req, res);
+        } else {
+          return res.oldWrite(data);
+        }
+      } catch (_error) {
         send500(req, res);
-      } else {
-        return res.oldWrite(data);
       }
     };
     return regularProxy.proxyRequest(req, res, {

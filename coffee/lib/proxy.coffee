@@ -55,7 +55,7 @@ server = http.createServer (req, res) ->
     send500(req, res)
     return
 
-  if uri.path.match 'is_alive'
+  if uri?.path?.match 'is_alive'
     console.log "* Last timeout was #{timed_out_until}"
     res.setHeader('proxy-alive', 'true')
     res.setHeader('Content-Type', 'text/plain')
@@ -73,14 +73,18 @@ server = http.createServer (req, res) ->
   # overload the res.write() to sniff on response
   res.oldWrite = res.write
   res.write = (data) ->
-    if data.toString().match /This IP has been automatically blocked/
-      logError 'ERROR! data: \t' + data.toString()
-      timed_out_until = Date.now() + 1000 * 60 * 5 # timeout for 5 minutes
+    try
+      if data?.toString().match /This IP has been automatically blocked/
+        logError 'ERROR! data: \t' + data.toString()
+        timed_out_until = Date.now() + 1000 * 60 * 5 # timeout for 5 minutes
+        send500(req, res)
+        return
+      else
+        res.oldWrite(data) # basically like calling super
+    catch
       send500(req, res)
       return
-    else
-      res.oldWrite(data) # basically like calling super
-
+  
   regularProxy.proxyRequest req, res, 
     host: uri.hostname
     port: uri.port || 80
